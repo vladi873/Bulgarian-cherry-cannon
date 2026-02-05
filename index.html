@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<title>Черешово топче – интерактивен модел</title>
+
+<script type="module"
+  src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
+</script>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0e0e0e;
+  color: white;
+}
+
+#container {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  height: 100vh;
+}
+
+model-viewer {
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+}
+
+#info {
+  padding: 20px;
+  overflow-y: auto;
+  background: #121212;
+}
+
+button.hotspot {
+  background: #ff9800;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="container">
+
+<model-viewer
+  src="Meshy_AI_Bulgarian_cherry_cann_0205155740_texture.glb"
+  camera-controls
+  auto-rotate
+  shadow-intensity="1">
+
+  <!-- Hotspot 1 -->
+  <button class="hotspot"
+    slot="hotspot-1"
+    data-position="0.2m 0.1m 0.1m"
+    data-normal="0 1 0"
+    onclick="showInfo('barrel')">
+  </button>
+
+  <!-- Hotspot 2 -->
+  <button class="hotspot"
+    slot="hotspot-2"
+    data-position="-0.2m 0.05m 0"
+    data-normal="0 1 0"
+    onclick="showInfo('bands')">
+  </button>
+
+</model-viewer>
+
+<div id="info">
+  <h2 id="title">Избери част</h2>
+  <p id="text">Кликни върху точките на модела.</p>
+
+  <div id="video" style="display:none;">
+    <iframe width="100%" height="200"
+      src="https://www.youtube.com/embed/ТВОЕТО_ID"
+      allowfullscreen>
+    </iframe>
+  </div>
+</div>
+
+</div>
+
+<script>
+function showInfo(type) {
+  const title = document.getElementById('title');
+  const text = document.getElementById('text');
+  const video = document.getElementById('video');
+
+  video.style.display = 'none';
+
+  if (type === 'barrel') {
+    title.innerText = 'Цев';
+    text.innerText =
+      'Цевта е издълбана от масивно черешово дърво и укрепена с железни обръчи.';
+  }
+
+  if (type === 'bands') {
+    title.innerText = 'Железни обръчи';
+    text.innerText =
+      'Обръчите предотвратяват разцепване на дървото при изстрел.';
+    video.style.display = 'block';
+  }
+}
+</script>
+
+</body>
+</html>
