@@ -1,3 +1,4 @@
+/* --- Общи стилове --- */
 * {
   box-sizing: border-box;
 }
@@ -9,18 +10,21 @@ body {
   font-family: system-ui, sans-serif;
 }
 
+/* Основен контейнер */
 #app {
   display: grid;
   grid-template-columns: 2.2fr 1fr;
   height: 100vh;
 }
 
+/* 3D модел */
 model-viewer {
   width: 100%;
   height: 100%;
   background: #111;
 }
 
+/* Панел с информация */
 #panel {
   padding: 24px;
   background: #151515;
@@ -32,6 +36,7 @@ model-viewer {
   margin-bottom: 0.5em;
 }
 
+/* Hotspot бутони */
 .hotspot {
   width: 16px;
   height: 16px;
@@ -39,4 +44,26 @@ model-viewer {
   border-radius: 50%;
   border: none;
   cursor: pointer;
+}
+
+/* --- Responsive стилове за телефони и малки екрани --- */
+@media (max-width: 768px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 60vh auto; /* моделът 60%, панелът 40% */
+    height: auto;
+  }
+
+  model-viewer {
+    height: 60vh;
+  }
+
+  #panel {
+    height: 40vh;
+    padding: 16px;
+  }
+
+  #panel h1 {
+    font-size: 1.3rem;
+  }
 }
