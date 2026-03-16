@@ -5,143 +5,159 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Черешово топче – интерактивен модел</title>
 
+<!-- 3D модел -->
 <script type="module"
-  src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
-</script>
+src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<!-- Font Awesome за човечето -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-/* --- Общи стилове --- */
-* {
-  box-sizing: border-box;
+body{ margin:0; background:#0b0b0b; color:white; font-family:system-ui; }
+#app{ display:grid; grid-template-columns:2fr 1fr; height:100vh; }
+model-viewer{ width:100%; height:100%; background:#111; }
+#panel{ background:#151515; padding:20px; overflow:auto; }
+#panel h2{ margin-top:0; }
+#map{ height:320px; margin-top:20px; border-radius:10px; overflow:hidden; }
+.hotspot{ width:16px; height:16px; background:#ff9800; border-radius:50%; border:none; cursor:pointer; }
+
+/* пулсиращи точки */
+.pulse-marker{
+  width:14px; height:14px; background:#ff9800; border-radius:50%; position:relative;
+}
+.pulse-marker::after{
+  content:""; position:absolute; width:14px; height:14px; border-radius:50%; background:#ff9800;
+  animation:pulse 2s infinite; opacity:0.7;
+}
+@keyframes pulse{
+  0%{ transform:scale(1); opacity:0.8; }
+  70%{ transform:scale(3); opacity:0; }
+  100%{ transform:scale(1); opacity:0; }
 }
 
-body {
-  margin: 0;
-  background: #0b0b0b;
-  color: #eaeaea;
-  font-family: system-ui, sans-serif;
+/* live counter горе вдясно */
+#liveCounter{
+  position:fixed; top:15px; right:20px;
+  display:flex; align-items:center; gap:8px;
+  font-size:22px; color:white; background:rgba(0,0,0,0.5);
+  padding:6px 12px; border-radius:20px; z-index:999;
 }
+#liveCounter i{ font-size:22px; }
 
-#app {
-  display: grid;
-  grid-template-columns: 2.2fr 1fr;
-  height: 100vh;
-  overflow: hidden;
-}
-
-model-viewer {
-  width: 100%;
-  height: 100%;
-  background: #111;
-}
-
-#panel {
-  padding: 24px;
-  background: #151515;
-  overflow-y: auto;
-}
-
-#panel h1 {
-  font-size: 1.6rem;
-  margin-bottom: 0.5em;
-}
-
-.hotspot {
-  width: 16px;
-  height: 16px;
-  background: #ff9800;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-}
-
-/* --- Responsive за телефони --- */
-@media (max-width: 768px) {
-  #app {
-    grid-template-columns: 1fr;
-    grid-template-rows: 60vh auto;
-    height: auto;
-  }
-
-  model-viewer {
-    height: 60vh;
-  }
-
-  #panel {
-    height: 40vh;
-    padding: 16px;
-  }
-
-  #panel h1 {
-    font-size: 1.3rem;
-  }
+@media (max-width:768px){
+  #app{ grid-template-columns:1fr; grid-template-rows:60vh auto; height:auto; }
+  model-viewer{ height:60vh; }
 }
 </style>
 </head>
 
 <body>
 
+<!-- Live counter горе вдясно -->
+<div id="liveCounter">
+  <i class="fa-regular fa-user"></i>
+  <span id="onlineCount">0</span>
+</div>
+
 <div id="app">
 
-  <model-viewer
-    src="Meshy_AI_Bulgarian_cherry_cann_0205155740_texture.glb"
-    camera-controls
-    auto-rotate
-    shadow-intensity="1">
+<model-viewer
+src="Meshy_AI_Bulgarian_cherry_cann_0205155740_texture.glb"
+camera-controls auto-rotate shadow-intensity="1">
 
-    <!-- Hotspot 1 -->
-    <button class="hotspot"
-      slot="hotspot-1"
-      data-position="0.2m 0.1m 0.1m"
-      data-normal="0 1 0"
-      onclick="showInfo('barrel')">
-    </button>
+<button class="hotspot"
+slot="hotspot-1"
+data-position="0.2m 0.1m 0.1m"
+data-normal="0 1 0"
+onclick="selectPart('barrel')"></button>
 
-    <!-- Hotspot 2 -->
-    <button class="hotspot"
-      slot="hotspot-2"
-      data-position="-0.2m 0.05m 0"
-      data-normal="0 1 0"
-      onclick="showInfo('bands')">
-    </button>
+<button class="hotspot"
+slot="hotspot-2"
+data-position="-0.2m 0.05m 0"
+data-normal="0 1 0"
+onclick="selectPart('bands')"></button>
 
-  </model-viewer>
+</model-viewer>
 
-  <div id="panel">
-    <h1 id="title">Избери част</h1>
-    <p id="text">Кликни върху точките на модела.</p>
+<div id="panel">
+<h2 id="title">Избери част</h2>
+<p id="text">Кликни върху точките на модела.</p>
+<div id="media"></div>
 
-    <div id="video" style="display:none;">
-      <iframe width="100%" height="200"
-        src="https://www.youtube.com/embed/ТВОЕТО_ID"
-        allowfullscreen>
-      </iframe>
-    </div>
-  </div>
-
+<h3>🌍 Посетители на сайта</h3>
+<div id="map"></div>
+</div>
 </div>
 
 <script>
-function showInfo(type) {
-  const title = document.getElementById('title');
-  const text = document.getElementById('text');
-  const video = document.getElementById('video');
-
-  video.style.display = 'none';
-
-  if (type === 'barrel') {
-    title.innerText = 'Цев';
-    text.innerText =
-      'Цевта е издълбана от масивно черешово дърво и укрепена с железни обръчи.';
-  }
-
-  if (type === 'bands') {
-    title.innerText = 'Железни обръчи';
-    text.innerText =
-      'Обръчите предотвратяват разцепване на дървото при изстрел.';
-    video.style.display = 'block';
+/* --- Части на модела --- */
+const data = {
+  barrel:{ title:"Дървена цев", text:"Издълбана от масивно черешово дърво.", video:"https://www.youtube.com/embed/dQw4w9WgXcQ" },
+  bands:{ title:"Железни обръчи", text:"Металните обръчи предпазват дървото от разцепване." }
+};
+function selectPart(key){
+  const part = data[key];
+  document.getElementById("title").innerText = part.title;
+  document.getElementById("text").innerText = part.text;
+  const media = document.getElementById("media");
+  media.innerHTML = "";
+  if(part.video){
+    media.innerHTML = `<iframe width="100%" height="220" src="${part.video}" allowfullscreen></iframe>`;
   }
 }
+
+/* --- Карта --- */
+const map = L.map('map',{ zoomControl:false }).setView([30,10],2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{ maxZoom:19 }).addTo(map);
+
+/* --- Firebase --- */
+const firebaseConfig = {
+apiKey: "AIzaSyCxVXhOTV9RfmZlMEnqyda2peavgec27RU",
+  authDomain: "cherry-cannon.firebaseapp.com",
+  databaseURL: "https://cherry-cannon-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "cherry-cannon",
+  storageBucket: "cherry-cannon.firebasestorage.app",
+  messagingSenderId: "33268269491",
+  appId: "1:33268269491:web:e53b465f590d350a8bcbc6",
+  measurementId: "G-1480YS0HC3"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* --- Локация на потребителя --- */
+fetch("https://ipapi.co/json/").then(res=>res.json()).then(data=>{
+  const lat=data.latitude;
+  const lon=data.longitude;
+  const userRef=db.ref("visitors").push();
+  userRef.set({lat,lon});
+  userRef.onDisconnect().remove();
+});
+
+/* --- Показва точките --- */
+const markers = [];
+db.ref("visitors").on("value", snapshot=>{
+  const count = snapshot.numChildren();
+  document.getElementById("onlineCount").innerText = count;
+
+  // маха старите маркери
+  markers.forEach(m=>map.removeLayer(m));
+  markers.length=0;
+
+  snapshot.forEach(child=>{
+    const v = child.val();
+    const icon=L.divIcon({ className:"pulse-marker" });
+    const marker = L.marker([v.lat,v.lon],{ icon:icon }).addTo(map);
+    markers.push(marker);
+  });
+});
 </script>
 
 </body>
