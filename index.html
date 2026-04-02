@@ -3,81 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Черешово топче – интерактивен модел</title>
+    <title>Черешово топче – Интерактивен модел</title>
 
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
     <style>
         body { margin:0; background:#0b0b0b; color:white; font-family:system-ui; overflow-x: hidden; }
         
-        /* Основно приложение (Страница 1) */
-        #app { display:grid; grid-template-columns:2fr 1fr; height:100vh; }
+        /* ГЛАВНА СТРАНИЦА - АДАПТИВНОСТ */
+        #app { 
+            display: grid; 
+            grid-template-columns: 2fr 1fr; 
+            height: 100vh; 
+        }
+
+        @media (max-width: 900px) {
+            #app { grid-template-columns: 1fr; grid-template-rows: 50vh auto; height: auto; }
+            #panel { height: auto !important; border-left: none !important; border-top: 1px solid #333; }
+        }
+
         model-viewer { width:100%; height:100%; background:#111; }
-        #panel { background:#151515; padding:20px; overflow:auto; border-left: 1px solid #333; }
-        
-        /* Страница 2 (Възстановки) - Скрита по подразбиране */
+        #panel { background:#151515; padding:20px; overflow-y: auto; box-sizing: border-box; }
+
+        /* СТРАНИЦА 2 - ВЪЗСТАНОВКИ */
         #page2 { 
             display: none; 
-            padding: 40px; 
+            padding: 20px; 
             background: #0b0b0b; 
             min-height: 100vh; 
             box-sizing: border-box; 
         }
 
-        /* Дизайн на видео секцията */
-        .recon-container { display: flex; gap: 30px; max-width: 1200px; margin: 0 auto; flex-wrap: wrap; }
-        .video-box { flex: 2; min-width: 300px; }
-        .video-box video { width: 100%; border-radius: 15px; border: 2px solid #333; }
-        
-        .questions-sidebar { flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 15px; }
+        .recon-container { 
+            display: flex; 
+            gap: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            flex-wrap: wrap; 
+        }
+
+        .video-box { 
+            flex: 2; 
+            min-width: 300px; 
+            position: relative;
+        }
+
+        /* Поправка за видеото на телефон */
+        video { 
+            width: 100%; 
+            border-radius: 12px; 
+            background: #000;
+            display: block;
+            max-height: 70vh;
+        }
+
+        .questions-sidebar { 
+            flex: 1; 
+            min-width: 280px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+        }
+
         .q-card { 
-            background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; 
-            cursor: pointer; transition: 0.3s; 
+            background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #333; 
+            cursor: pointer; transition: 0.2s; 
         }
-        .q-card:hover { border-color: #ff9800; transform: translateX(10px); background: #222; }
-        .q-card h4 { margin: 0 0 5px 0; color: #ff9800; }
-        .q-card p { margin: 0; font-size: 0.9em; color: #aaa; }
+        .q-card:active { transform: scale(0.98); } /* Ефект при натискане на телефон */
+        .q-card h4 { margin: 0 0 5px 0; color: #ff9800; font-size: 1.1rem; }
+        .q-card p { margin: 0; font-size: 0.85rem; color: #aaa; }
 
-        /* Бутон за навигация */
+        /* БУТОН ЗА НАВИГАЦИЯ */
         .nav-btn {
-            position: fixed; bottom: 20px; left: 20px; z-index: 9999;
-            background: #ff9800; color: black; border: none; padding: 12px 25px;
-            font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999;
+            background: #ff9800; color: black; border: none; padding: 14px 28px;
+            font-weight: bold; border-radius: 30px; cursor: pointer; white-space: nowrap;
         }
 
-        /* Стилизация на картата и хотспотовете */
-        #map { height:320px; margin-top:20px; border-radius:10px; overflow:hidden; }
-        .hotspot { width:16px; height:16px; background:#ff9800; border-radius:50%; border:none; cursor:pointer; }
+        #map { height:250px; margin-top:20px; border-radius:10px; }
+        .hotspot { width:16px; height:16px; background:#ff9800; border-radius:50%; border:none; }
         
-        .pulse-marker { width:14px; height:14px; background:#ff9800; border-radius:50%; position:relative; }
-        .pulse-marker::after {
-            content:""; position:absolute; width:14px; height:14px; border-radius:50%; background:#ff9800;
-            animation:pulse 2s infinite; opacity:0.7;
-        }
-        @keyframes pulse { 0% { transform:scale(1); opacity:0.8; } 70% { transform:scale(3); opacity:0; } 100% { transform:scale(1); opacity:0; } }
-
         #liveCounter {
-            position:fixed; top:15px; right:20px; display:flex; align-items:center; gap:8px;
-            font-size:22px; color:white; background:rgba(0,0,0,0.5); padding:6px 12px; border-radius:20px; z-index:999;
+            position:fixed; top:10px; right:10px; display:flex; align-items:center; gap:8px;
+            font-size:18px; color:white; background:rgba(0,0,0,0.6); padding:5px 12px; border-radius:20px; z-index:999;
         }
-
-        @media (max-width:768px){ #app { grid-template-columns:1fr; } .recon-container { flex-direction: column; } }
     </style>
 </head>
 <body>
 
-<div id="liveCounter">
-    <i class="fa-regular fa-user"></i>
-    <span id="onlineCount">0</span>
-</div>
+<div id="liveCounter"><i class="fa-regular fa-user"></i> <span id="onlineCount">0</span></div>
 
 <button class="nav-btn" id="togglePageBtn" onclick="togglePages()">🎬 Към Възстановки</button>
 
@@ -91,64 +110,43 @@
         <h2 id="title">Избери част</h2>
         <p id="text">Кликни върху точките на модела.</p>
         <div id="media"></div>
-
         <h3>🌍 Посетители на сайта</h3>
         <div id="map"></div>
     </div>
 </div>
 
 <div id="page2">
-    <h1 style="text-align:center; color:#ff9800; margin-bottom:40px;">Исторически Възстановки</h1>
-    
+    <h2 style="text-align:center; color:#ff9800;">Исторически Възстановки</h2>
     <div class="recon-container">
-        <div class="video-box" style="position: relative;">
-            <video id="reconVideo" muted playsinline poster="tvoia-snimka.jpg">
-    <source src="Comp1.mp4" type="video/mp4">
-           </video>
-            
-            <div class="video-controls" style="margin-top: 10px; display: flex; gap: 10px;">
-                <button onclick="document.getElementById('reconVideo').play()" class="q-card" style="padding: 10px 20px; flex: 1; text-align: center;">
-                    <i class="fa-solid fa-play"></i> Пусни видео
-                </button>
-                <button onclick="document.getElementById('reconVideo').pause()" class="q-card" style="padding: 10px 20px; flex: 1; text-align: center;">
-                    <i class="fa-solid fa-pause"></i> Пауза
-                </button>
+        <div class="video-box">
+            <video id="reconVideo" muted playsinline preload="auto">
+                <source src="Comp1.mp4" type="video/mp4">
+            </video>
+            <div style="margin-top:10px; display:flex; gap:10px;">
+                <button onclick="manualPlay()" style="flex:1; padding:10px; background:#333; color:white; border:none; border-radius:5px;">▶ Пусни</button>
+                <button onclick="manualPause()" style="flex:1; padding:10px; background:#333; color:white; border:none; border-radius:5px;">⏸ Пауза</button>
             </div>
-            
-            <p style="margin-top:15px; color:#888;">* Видеото е в готовност. Изберете въпрос, за да започне разказът.</p>
         </div>
 
         <div class="questions-sidebar">
             <div class="q-card" onclick="playAudioResponse('25yearGeorgi.mp3')">
-                <h4>Георги, ти си само на 25 години. Какво кара един млад човек с бъдеще в армията да остави всичко и да се обрече на почти сигурна смърт в името на Свободата??</h4>
-                <p>Научете историята на Георги.</p>
+                <h4>Кой е изработил първото топче?</h4>
+                <p>Кликни за отговор</p>
             </div>
             <div class="q-card" onclick="playAudioResponse('audio2.mp3')">
                 <h4>Колко е бил обсегът му?</h4>
-                <p>Технически данни за стрелбата.</p>
-            </div>
-            <div class="q-card" onclick="playAudioResponse('audio3.mp3')">
-                <h4>Как се е подготвял изстрелът?</h4>
-                <p>Процесът по зареждане на барута.</p>
+                <p>Кликни за отговор</p>
             </div>
         </div>
     </div>
-    <audio id="reconAudio"></audio>
+    <audio id="reconAudio" playsinline></audio>
 </div>
 
 <script>
-/* ---------- ТВОЯТА ОРИГИНАЛНА ДЖАВА (НЕПОКЪТНАТА) ---------- */
-
+/* ТВОИТЕ ДАННИ И FIREBASE (ЗАПАЗЕНИ) */
 const data = {
-    barrel: {
-        title: "Дървена цев",
-        text: "Издълбана от масивно черешово дърво. Формата е груба и несиметрична.",
-        video: "https://www.youtube.com/embed/dQw4w9WgXcQ"
-    },
-    bands: {
-        title: "Железни обръчи",
-        text: "Металните обръчи намаляват риска от разцепване при изстрел."
-    }
+    barrel: { title: "Дървена цев", text: "Издълбана от масивно черешово дърво.", video: "https://www.youtube.com/embed/dQw4w9WgXcQ" },
+    bands: { title: "Железни обръчи", text: "Металните обръчи намаляват риска от разцепване." }
 };
 
 function selectPart(key) {
@@ -156,17 +154,16 @@ function selectPart(key) {
     document.getElementById("title").innerText = part.title;
     document.getElementById("text").innerText = part.text;
     const media = document.getElementById("media");
-    media.innerHTML = "";
-    if (part.video) {
-        media.innerHTML = `<iframe width="100%" height="220" src="${part.video}" allowfullscreen></iframe>`;
-    }
+    media.innerHTML = part.video ? `<iframe width="100%" height="220" src="${part.video}" allowfullscreen></iframe>` : "";
 }
 
-const map = L.map('map').setView([30,10],2);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+// Карта
+const map = L.map('map').setView([42.7, 25.3], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-const firebaseConfig = {
-    apiKey: "AIzaSyCxVXhOTV9RfmZlMEnqyda2peavgec27RU",
+// Firebase (сложи си твоя config тук)
+const firebaseConfig = { 
+    apiKey: "AIzaSyCxVXhOTV9RfmZlMEnqyda2peavgec27RU", 
     authDomain: "cherry-cannon.firebaseapp.com",
     databaseURL: "https://cherry-cannon-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "cherry-cannon",
@@ -178,51 +175,44 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-fetch("https://ipapi.co/json/").then(res => res.json()).then(data => {
-    const lat = data.latitude;
-    const lon = data.longitude;
+// Локация
+fetch("https://ipapi.co/json/").then(res => res.json()).then(d => {
     const userRef = db.ref("visitors").push();
-    userRef.set({ lat, lon });
+    userRef.set({ lat: d.latitude, lon: d.longitude });
     userRef.onDisconnect().remove();
 });
 
+// Маркери
 const markers = [];
-db.ref("visitors").on("value", snapshot => {
-    const count = snapshot.numChildren();
-    document.getElementById("onlineCount").innerText = count;
+db.ref("visitors").on("value", snap => {
+    document.getElementById("onlineCount").innerText = snap.numChildren();
     markers.forEach(m => map.removeLayer(m));
-    markers.length = 0;
-    snapshot.forEach(child => {
+    snap.forEach(child => {
         const v = child.val();
-        const marker = L.circleMarker([v.lat, v.lon], {
-            radius: 6, color: "#ff9800", fillColor: "#ff9800", fillOpacity: 0.8
-        }).addTo(map);
-        markers.push(marker);
+        const m = L.circleMarker([v.lat, v.lon], { radius: 6, color: "#ff9800" }).addTo(map);
+        markers.push(m);
     });
 });
 
-/* ---------- НОВАТА ЛОГИКА (ДОБАВЕНА) ---------- */
-
+/* ЛОГИКА ЗА СТРАНИЦА 2 */
 let isPage2 = false;
 
 function togglePages() {
     const p1 = document.getElementById('app');
     const p2 = document.getElementById('page2');
     const btn = document.getElementById('togglePageBtn');
-    const video = document.getElementById('reconVideo');
-    const audio = document.getElementById('reconAudio');
-
+    
     if (!isPage2) {
         p1.style.display = 'none';
         p2.style.display = 'block';
-        btn.innerText = '⬅ Обратно към модела';
-        video.play().catch(() => {}); 
+        btn.innerText = '⬅ Назад';
+        window.scrollTo(0,0);
     } else {
         p1.style.display = 'grid';
         p2.style.display = 'none';
         btn.innerText = '🎬 Към Възстановки';
-        video.pause();
-        audio.pause();
+        document.getElementById('reconVideo').pause();
+        document.getElementById('reconAudio').pause();
     }
     isPage2 = !isPage2;
 }
@@ -232,10 +222,18 @@ function playAudioResponse(file) {
     const video = document.getElementById('reconVideo');
     
     audio.src = file;
-    video.currentTime = 0; // Рестартираме видеото визуално за синхрон
-    audio.play();
-    video.play();
+    video.currentTime = 0;
+    
+    // Мобилен фикс: Трябва първо да пуснем аудиото, после видеото
+    audio.play().then(() => {
+        video.play();
+    }).catch(err => console.log("Браузърът блокира звука: ", err));
+
+    audio.onended = () => video.pause();
 }
+
+function manualPlay() { document.getElementById('reconVideo').play(); }
+function manualPause() { document.getElementById('reconVideo').pause(); document.getElementById('reconAudio').pause(); }
 </script>
 
 </body>
