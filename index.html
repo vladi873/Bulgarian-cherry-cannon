@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Черешово топче – интерактивен модел</title>
+
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        body { margin:0; background:#0b0b0b; color:white; font-family:system-ui; overflow-x: hidden; }
+        
+        /* Основно приложение (Страница 1) */
+        #app { display:grid; grid-template-columns:2fr 1fr; height:100vh; }
+        model-viewer { width:100%; height:100%; background:#111; }
+        #panel { background:#151515; padding:20px; overflow:auto; border-left: 1px solid #333; }
+        
+        /* Страница 2 (Възстановки) - Скрита по подразбиране */
+        #page2 { 
+            display: none; 
+            padding: 40px; 
+            background: #0b0b0b; 
+            min-height: 100vh; 
+            box-sizing: border-box; 
+        }
+
+        /* Дизайн на видео секцията */
+        .recon-container { display: flex; gap: 30px; max-width: 1200px; margin: 0 auto; flex-wrap: wrap; }
+        .video-box { flex: 2; min-width: 300px; }
+        .video-box video { width: 100%; border-radius: 15px; border: 2px solid #333; }
+        
+        .questions-sidebar { flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 15px; }
+        .q-card { 
+            background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; 
+            cursor: pointer; transition: 0.3s; 
+        }
+        .q-card:hover { border-color: #ff9800; transform: translateX(10px); background: #222; }
+        .q-card h4 { margin: 0 0 5px 0; color: #ff9800; }
+        .q-card p { margin: 0; font-size: 0.9em; color: #aaa; }
+
+        /* Бутон за навигация */
+        .nav-btn {
+            position: fixed; bottom: 20px; left: 20px; z-index: 9999;
+            background: #ff9800; color: black; border: none; padding: 12px 25px;
+            font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* Стилизация на картата и хотспотовете */
+        #map { height:320px; margin-top:20px; border-radius:10px; overflow:hidden; }
+        .hotspot { width:16px; height:16px; background:#ff9800; border-radius:50%; border:none; cursor:pointer; }
+        
+        .pulse-marker { width:14px; height:14px; background:#ff9800; border-radius:50%; position:relative; }
+        .pulse-marker::after {
+            content:""; position:absolute; width:14px; height:14px; border-radius:50%; background:#ff9800;
+            animation:pulse 2s infinite; opacity:0.7;
+        }
+        @keyframes pulse { 0% { transform:scale(1); opacity:0.8; } 70% { transform:scale(3); opacity:0; } 100% { transform:scale(1); opacity:0; } }
+
+        #liveCounter {
+            position:fixed; top:15px; right:20px; display:flex; align-items:center; gap:8px;
+            font-size:22px; color:white; background:rgba(0,0,0,0.5); padding:6px 12px; border-radius:20px; z-index:999;
+        }
+
+        @media (max-width:768px){ #app { grid-template-columns:1fr; } .recon-container { flex-direction: column; } }
+    </style>
+</head>
+<body>
+
+<div id="liveCounter">
+    <i class="fa-regular fa-user"></i>
+    <span id="onlineCount">0</span>
+</div>
+
+<button class="nav-btn" id="togglePageBtn" onclick="togglePages()">🎬 Към Възстановки</button>
+
+<div id="app">
+    <model-viewer id="mainModel" src="Meshy_AI_Bulgarian_cherry_cann_0205155740_texture.glb" camera-controls auto-rotate shadow-intensity="1">
+        <button class="hotspot" slot="hotspot-1" data-position="0.2m 0.1m 0.1m" data-normal="0 1 0" onclick="selectPart('barrel')"></button>
+        <button class="hotspot" slot="hotspot-2" data-position="-0.2m 0.05m 0" data-normal="0 1 0" onclick="selectPart('bands')"></button>
+    </model-viewer>
+
+    <div id="panel">
+        <h2 id="title">Избери част</h2>
+        <p id="text">Кликни върху точките на модела.</p>
+        <div id="media"></div>
+
+        <h3>🌍 Посетители на сайта</h3>
+        <div id="map"></div>
+    </div>
+</div>
+
+<div id="page2">
+    <h1 style="text-align:center; color:#ff9800; margin-bottom:40px;">Исторически Възстановки</h1>
+    
+    <div class="recon-container">
+        <div class="video-box" style="position: relative;">
+            <video id="reconVideo" muted playsinline poster="tvoia-snimka.jpg">
+    <source src="Comp1.mp4" type="video/mp4">
+           </video>
+            
+            <div class="video-controls" style="margin-top: 10px; display: flex; gap: 10px;">
+                <button onclick="document.getElementById('reconVideo').play()" class="q-card" style="padding: 10px 20px; flex: 1; text-align: center;">
+                    <i class="fa-solid fa-play"></i> Пусни видео
+                </button>
+                <button onclick="document.getElementById('reconVideo').pause()" class="q-card" style="padding: 10px 20px; flex: 1; text-align: center;">
+                    <i class="fa-solid fa-pause"></i> Пауза
+                </button>
+            </div>
+            
+            <p style="margin-top:15px; color:#888;">* Видеото е в готовност. Изберете въпрос, за да започне разказът.</p>
+        </div>
+
+        <div class="questions-sidebar">
+            <div class="q-card" onclick="playAudioResponse('25yearGeorgi.mp3')">
+                <h4>Георги, ти си само на 25 години. Какво кара един млад човек с бъдеще в армията да остави всичко и да се обрече на почти сигурна смърт в името на Свободата??</h4>
+                <p>Научете историята на Георги.</p>
+            </div>
+            <div class="q-card" onclick="playAudioResponse('audio2.mp3')">
+                <h4>Колко е бил обсегът му?</h4>
+                <p>Технически данни за стрелбата.</p>
+            </div>
+            <div class="q-card" onclick="playAudioResponse('audio3.mp3')">
+                <h4>Как се е подготвял изстрелът?</h4>
+                <p>Процесът по зареждане на барута.</p>
+            </div>
+        </div>
+    </div>
+    <audio id="reconAudio"></audio>
+</div>
+
+<script>
+/* ---------- ТВОЯТА ОРИГИНАЛНА ДЖАВА (НЕПОКЪТНАТА) ---------- */
+
+const data = {
+    barrel: {
+        title: "Дървена цев",
+        text: "Издълбана от масивно черешово дърво. Формата е груба и несиметрична.",
+        video: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+    },
+    bands: {
+        title: "Железни обръчи",
+        text: "Металните обръчи намаляват риска от разцепване при изстрел."
+    }
+};
+
+function selectPart(key) {
+    const part = data[key];
+    document.getElementById("title").innerText = part.title;
+    document.getElementById("text").innerText = part.text;
+    const media = document.getElementById("media");
+    media.innerHTML = "";
+    if (part.video) {
+        media.innerHTML = `<iframe width="100%" height="220" src="${part.video}" allowfullscreen></iframe>`;
+    }
+}
+
+const map = L.map('map').setView([30,10],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCxVXhOTV9RfmZlMEnqyda2peavgec27RU",
+    authDomain: "cherry-cannon.firebaseapp.com",
+    databaseURL: "https://cherry-cannon-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "cherry-cannon",
+    storageBucket: "cherry-cannon.firebasestorage.app",
+    messagingSenderId: "33268269491",
+    appId: "1:33268269491:web:e53b465f590d350a8bcbc6",
+    measurementId: "G-1480YS0HC3"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+fetch("https://ipapi.co/json/").then(res => res.json()).then(data => {
+    const lat = data.latitude;
+    const lon = data.longitude;
+    const userRef = db.ref("visitors").push();
+    userRef.set({ lat, lon });
+    userRef.onDisconnect().remove();
+});
+
+const markers = [];
+db.ref("visitors").on("value", snapshot => {
+    const count = snapshot.numChildren();
+    document.getElementById("onlineCount").innerText = count;
+    markers.forEach(m => map.removeLayer(m));
+    markers.length = 0;
+    snapshot.forEach(child => {
+        const v = child.val();
+        const marker = L.circleMarker([v.lat, v.lon], {
+            radius: 6, color: "#ff9800", fillColor: "#ff9800", fillOpacity: 0.8
+        }).addTo(map);
+        markers.push(marker);
+    });
+});
+
+/* ---------- НОВАТА ЛОГИКА (ДОБАВЕНА) ---------- */
+
+let isPage2 = false;
+
+function togglePages() {
+    const p1 = document.getElementById('app');
+    const p2 = document.getElementById('page2');
+    const btn = document.getElementById('togglePageBtn');
+    const video = document.getElementById('reconVideo');
+    const audio = document.getElementById('reconAudio');
+
+    if (!isPage2) {
+        p1.style.display = 'none';
+        p2.style.display = 'block';
+        btn.innerText = '⬅ Обратно към модела';
+        video.play().catch(() => {}); 
+    } else {
+        p1.style.display = 'grid';
+        p2.style.display = 'none';
+        btn.innerText = '🎬 Към Възстановки';
+        video.pause();
+        audio.pause();
+    }
+    isPage2 = !isPage2;
+}
+
+function playAudioResponse(file) {
+    const audio = document.getElementById('reconAudio');
+    const video = document.getElementById('reconVideo');
+    
+    audio.src = file;
+    video.currentTime = 0; // Рестартираме видеото визуално за синхрон
+    audio.play();
+    video.play();
+}
+</script>
+
+</body>
+</html>
